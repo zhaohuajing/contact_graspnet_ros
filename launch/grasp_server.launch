@@ -1,0 +1,5 @@
+<launch>
+  <arg name="mamba_env" default="false" />
+  <node name="cgn_ros" pkg="cgn_ros" type="run_in_mamba.sh" output="screen" if="$(arg mamba_env)"/>
+  <node name="cgn_ros" pkg="cgn_ros" type="grasp_server.py" output="screen" unless="$(arg mamba_env)"/>
+</launch>
