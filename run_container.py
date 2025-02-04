@@ -22,6 +22,7 @@ if __name__ == "__main__":
         docker run \
             --rm --net=host -it --gpus all \
             -e DISPLAY=$DISPLAY -v /tmp:/tmp \
+            -v $HOME/.Xauthority:/home/user/.Xauthority \
             contact-graspnet:latest \
             /bin/bash -i -c \
             "source ~/.bashrc; \
