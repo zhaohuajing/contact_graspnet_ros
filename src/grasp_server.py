@@ -27,6 +27,8 @@ from geometry_msgs.msg import Point, Pose, PoseStamped
 from cgn_ros.msg import Grasps
 from cgn_ros.srv import GetGrasps, GetGraspsResponse
 
+# from grasp_plotter import GraspPlotter
+
 
 def list_to_pose(pose_list):
     pose_msg = Pose()
@@ -78,8 +80,8 @@ class GraspPlanner():
 
         global_config = config_utils.load_config(
             ckpt_dir,
-            batch_size=2,
-            arg_configs=['TEST.second_thres:0.0', 'TEST.first_thres:0.0']
+            batch_size=5,
+            # arg_configs=['TEST.second_thres:0.0', 'TEST.first_thres:0.0']
         )
 
         # Build the model
@@ -102,6 +104,9 @@ class GraspPlanner():
         self.sess = sess
         self.grasp_estimator = grasp_estimator
         self.rotate_z = tfs.rotation_matrix(np.pi, [0, 0, 1])
+
+        # init visualizer
+        # self.grasp_plotter = GraspPlotter()
 
     def get_grasp_poses(
         self,
@@ -131,7 +136,7 @@ class GraspPlanner():
             pc_segments=pc_segments,
             local_regions=True,
             filter_grasps=True,
-            forward_passes=2
+            forward_passes=5
         )
 
         print(grasps.keys())
@@ -146,7 +151,7 @@ class GraspPlanner():
             # transform back to input frame
             pose = frame_rotate.T @ pose
 
-            #swap x and y axes
+            # swap x and y axes
             pose = pose @ np.array(
                 [
                     [0., 1., 0., 0.],
@@ -175,6 +180,8 @@ class GraspPlanner():
         grasps_msg.poses = grasps
         grasps_msg.scores = scores
         grasps_msg.samples = samples
+
+        # self.grasp_plotter.draw_grasps(grasps, scores, frame='world')
 
         return GetGraspsResponse(grasps_msg)
 
