@@ -21,6 +21,7 @@ if __name__ == "__main__":
     docker_run_command = """
         docker run \
             --rm --net=host -it --gpus all \
+            -e QT_QPA_PLATFORM=offscreen \
             -e DISPLAY=$DISPLAY -v /tmp:/tmp \
             -v $HOME/.Xauthority:/home/user/.Xauthority \
             contact-graspnet:latest \
