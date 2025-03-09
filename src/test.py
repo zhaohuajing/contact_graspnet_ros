@@ -105,23 +105,27 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
         target_points = (rot @ target_points.T).T
         #target_points = (rot2 @ target_points.T).T
 
-        pc_segments = {1: target_points}
+        rot90 = rotation_matrix([0,1,0],np.pi/2)
+        for i in range(4):
+            pc_full = (rot90 @ pc_full.T).T
+            target_points = (rot90 @ target_points.T).T
+            pc_segments = {1: target_points}
 
-        print('Generating Grasps...')
-        t0 = time.time()
-        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
-                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
-        t1 = time.time()
-        print('*************Time: ', t1-t0)
-        print('Scores:', scores)
+            print('Generating Grasps...')
+            t0 = time.time()
+            pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
+                                                                                              local_regions=True, filter_grasps=True, forward_passes=forward_passes)
+            t1 = time.time()
+            print('*************Time: ', t1-t0)
+            print('Scores:', scores)
 
-        # Save results
-        np.savez('results/predictions_{}'.format(os.path.basename(p.replace('png','npz').replace('npy','npz'))),
-                  pred_grasps_cam=pred_grasps_cam, scores=scores, contact_pts=contact_pts)
+            # Save results
+            # np.savez('results/predictions_{}'.format(os.path.basename(p.replace('png','npz').replace('npy','npz'))),
+            #           pred_grasps_cam=pred_grasps_cam, scores=scores, contact_pts=contact_pts)
 
-        # Visualize results
-        #show_image(rgb, segmap)
-        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
+            # Visualize results
+            #show_image(rgb, segmap)
+            visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
 
     if not glob.glob(input_paths):
         print('No files found: ', input_paths)

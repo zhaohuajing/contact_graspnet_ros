@@ -28,7 +28,7 @@ from cgn_ros.msg import Grasps
 from cgn_ros.srv import GetGrasps, GetGraspsResponse
 
 # from grasp_plotter import GraspPlotter
-
+NUM_ITERS = 3
 
 def list_to_pose(pose_list):
     pose_msg = Pose()
@@ -80,7 +80,7 @@ class GraspPlanner():
 
         global_config = config_utils.load_config(
             ckpt_dir,
-            batch_size=5,
+            batch_size=NUM_ITERS,
             # arg_configs=['TEST.second_thres:0.0', 'TEST.first_thres:0.0']
         )
 
@@ -103,7 +103,20 @@ class GraspPlanner():
         # Set Class variables
         self.sess = sess
         self.grasp_estimator = grasp_estimator
-        self.rotate_z = tfs.rotation_matrix(np.pi, [0, 0, 1])
+        self.frame_rotate = np.array(
+            [
+                [0, -1., 0., 0.],
+                [0., 0, -1., 0.],
+                [1., 0., 0., 0.],
+                [0., 0., 0., 1.],
+            ]
+        )
+        self.rotate_z = np.round(tfs.rotation_matrix(np.pi, [0, 0, 1]))
+        self.extra_rotations = [
+            # np.eye(4)
+            np.round(tfs.rotation_matrix(i * np.pi / 2, [0, 1, 0]))
+            for i in range(-1, 2)
+        ]
 
         # init visualizer
         # self.grasp_plotter = GraspPlotter()
@@ -118,56 +131,54 @@ class GraspPlanner():
         target_points = target_points.reshape(-1, 3)
 
         # transform to trained coordinate frame
-        frame_rotate = np.array(
-            [
-                [0, -1., 0., 0.],
-                [0., 0, -1., 0.],
-                [1., 0., 0., 0.],
-                [0., 0., 0., 1.],
-            ]
-        )
-        points = (frame_rotate[:3, :3] @ points.T).T
-        target_points = (frame_rotate[:3, :3] @ target_points.T).T
-
-        pc_segments = {0: target_points}
-        grasps, scores, samples, _ = self.grasp_estimator.predict_scene_grasps(
-            self.sess,
-            points,
-            pc_segments=pc_segments,
-            local_regions=True,
-            filter_grasps=True,
-            forward_passes=5
-        )
-
-        print(grasps.keys())
-        print(scores.keys())
-        print(samples.keys())
+        points = (self.frame_rotate[:3, :3] @ points.T).T
+        target_points = (self.frame_rotate[:3, :3] @ target_points.T).T
 
         pose_list = []
         score_list = []
         sample_list = []
-        for pose, score, sample in zip(grasps[0], scores[0], samples[0]):
+        for rot in self.extra_rotations:
+            # rotate also around vertical so as to simulate
+            # seeing the scene from different viewpoints
+            points_t = (rot[:3, :3] @ points.T).T
+            target_points_t = (rot[:3, :3] @ target_points.T).T
+            pc_segments = {0: target_points_t}
 
-            # transform back to input frame
-            pose = frame_rotate.T @ pose
-
-            # swap x and y axes
-            pose = pose @ np.array(
-                [
-                    [0., 1., 0., 0.],
-                    [-1, 0., 0., 0.],
-                    [0., 0., 1., 0.],
-                    [0., 0., 0., 1.],
-                ]
+            # predict grasps
+            grasps, scores, samples, _ = self.grasp_estimator.predict_scene_grasps(
+                self.sess,
+                points_t,
+                pc_segments=pc_segments,
+                local_regions=True,
+                filter_grasps=True,
+                forward_passes=NUM_ITERS,
             )
+            # print(grasps.keys())
+            # print(scores.keys())
+            # print(samples.keys())
+            for pose, score, sample in zip(grasps[0], scores[0], samples[0]):
 
-            # rotate around symmetric axis for another possible grasp
-            pose_rot = pose @ self.rotate_z
+                # transform back to input frame
+                pose = rot.T @ pose
+                pose = self.frame_rotate.T @ pose
 
-            for pose_i in [pose, pose_rot]:
-                pose_list.append(matrix_to_pose(pose_i))
-                score_list.append(score)
-                sample_list.append(Point(sample[0], sample[1], sample[2]))
+                # swap x and y axes
+                pose = pose @ np.array(
+                    [
+                        [0., 1., 0., 0.],
+                        [-1, 0., 0., 0.],
+                        [0., 0., 1., 0.],
+                        [0., 0., 0., 1.],
+                    ]
+                )
+
+                # rotate around symmetric axis for another possible grasp
+                pose_rot = pose @ self.rotate_z
+
+                for pose_i in [pose, pose_rot]:
+                    pose_list.append(matrix_to_pose(pose_i))
+                    score_list.append(score)
+                    sample_list.append(Point(sample[0], sample[1], sample[2]))
 
         return pose_list, score_list, sample_list
 
