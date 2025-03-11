@@ -88,10 +88,7 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
 
         target_points = np.load('/tmp/target_points.npy')
         pc_full = np.load('/tmp/visible_points.npy')
-
-        center = np.mean(pc_full,axis=0)
-        #pc_full -= center
-        #target_points -= center
+        pc_full = target_points
 
         rot = np.array([
                     [0., 0., 1.],
@@ -105,27 +102,61 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
         target_points = (rot @ target_points.T).T
         #target_points = (rot2 @ target_points.T).T
 
-        rot90 = rotation_matrix([0,1,0],np.pi/2)
-        for i in range(4):
-            pc_full = (rot90 @ pc_full.T).T
-            target_points = (rot90 @ target_points.T).T
-            pc_segments = {1: target_points}
+        # rot90 = rotation_matrix([0,1,0],np.pi/2)
+        # for i in range(4):
+        #     pc_full = (rot90 @ pc_full.T).T
+        #     target_points = (rot90 @ target_points.T).T
+        pc_segments = {1: target_points}
 
-            print('Generating Grasps...')
-            t0 = time.time()
-            pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
-                                                                                              local_regions=True, filter_grasps=True, forward_passes=forward_passes)
-            t1 = time.time()
-            print('*************Time: ', t1-t0)
-            print('Scores:', scores)
+        print('Generating Grasps...')
+        t0 = time.time()
+        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
+                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
+        t1 = time.time()
+        print('*************Time: ', t1-t0)
+        print('Scores:', scores)
+        # Visualize results
+        #show_image(rgb, segmap)
+        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
 
-            # Save results
-            # np.savez('results/predictions_{}'.format(os.path.basename(p.replace('png','npz').replace('npy','npz'))),
-            #           pred_grasps_cam=pred_grasps_cam, scores=scores, contact_pts=contact_pts)
+        center = np.mean(pc_full,axis=0)
+        pc_full -= center
+        target_points -= center
 
-            # Visualize results
-            #show_image(rgb, segmap)
-            visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
+        # for i in range(4):
+        #     pc_full = (rot90 @ pc_full.T).T
+        #     target_points = (rot90 @ target_points.T).T
+        pc_segments = {1: target_points}
+
+        print('Generating Grasps...')
+        t0 = time.time()
+        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
+                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
+        t1 = time.time()
+        print('*************Time: ', t1-t0)
+        print('Scores:', scores)
+        # Visualize results
+        #show_image(rgb, segmap)
+        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
+
+        pc_full += [0.14, 0., 1.4]
+        target_points += [0.14, 0., 1.4]
+
+        # for i in range(4):
+        #     pc_full = (rot90 @ pc_full.T).T
+        #     target_points = (rot90 @ target_points.T).T
+        pc_segments = {1: target_points}
+
+        print('Generating Grasps...')
+        t0 = time.time()
+        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
+                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
+        t1 = time.time()
+        print('*************Time: ', t1-t0)
+        print('Scores:', scores)
+        # Visualize results
+        #show_image(rgb, segmap)
+        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
 
     if not glob.glob(input_paths):
         print('No files found: ', input_paths)
@@ -141,7 +172,7 @@ if __name__ == "__main__":
     parser.add_argument('--local_regions', action='store_true', default=False, help='Crop 3D local regions around given segments.')
     parser.add_argument('--filter_grasps', action='store_true', default=False,  help='Filter grasp contacts according to segmap.')
     parser.add_argument('--skip_border_objects', action='store_true', default=False,  help='When extracting local_regions, ignore segments at depth map boundary.')
-    parser.add_argument('--forward_passes', type=int, default=2,  help='Run multiple parallel forward passes to mesh_utils more potential contact points.')
+    parser.add_argument('--forward_passes', type=int, default=5,  help='Run multiple parallel forward passes to mesh_utils more potential contact points.')
     parser.add_argument('--segmap_id', type=int, default=0,  help='Only return grasps of the given object id')
     parser.add_argument('--arg_configs', nargs="*", type=str, default=[], help='overwrite config parameters')
     FLAGS = parser.parse_args()

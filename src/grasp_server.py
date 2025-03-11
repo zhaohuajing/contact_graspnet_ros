@@ -28,7 +28,7 @@ from cgn_ros.msg import Grasps
 from cgn_ros.srv import GetGrasps, GetGraspsResponse
 
 # from grasp_plotter import GraspPlotter
-NUM_ITERS = 3
+NUM_ITERS = 5
 
 def list_to_pose(pose_list):
     pose_msg = Pose()
@@ -113,9 +113,9 @@ class GraspPlanner():
         )
         self.rotate_z = np.round(tfs.rotation_matrix(np.pi, [0, 0, 1]))
         self.extra_rotations = [
-            # np.eye(4)
-            np.round(tfs.rotation_matrix(i * np.pi / 2, [0, 1, 0]))
-            for i in range(-1, 2)
+            np.eye(4)
+            # np.round(tfs.rotation_matrix(i * np.pi / 2, [0, 1, 0]))
+            # for i in range(-1, 2)
         ]
 
         # init visualizer
@@ -129,8 +129,11 @@ class GraspPlanner():
         points = np.array(points.data, dtype=np.float32).reshape(-1, 3)
         target_points = np.array(target_points.data, dtype=np.float32)
         target_points = target_points.reshape(-1, 3)
+        # mean = np.mean(target_points, axis=0)
 
         # transform to trained coordinate frame
+        # points -= mean
+        # target_points -= mean
         points = (self.frame_rotate[:3, :3] @ points.T).T
         target_points = (self.frame_rotate[:3, :3] @ target_points.T).T
 
@@ -161,6 +164,7 @@ class GraspPlanner():
                 # transform back to input frame
                 pose = rot.T @ pose
                 pose = self.frame_rotate.T @ pose
+                # pose[:3, 3] += mean
 
                 # swap x and y axes
                 pose = pose @ np.array(
