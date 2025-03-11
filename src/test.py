@@ -88,7 +88,8 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
 
         target_points = np.load('/tmp/target_points.npy')
         pc_full = np.load('/tmp/visible_points.npy')
-        pc_full = target_points
+        pc_full = np.vstack([target_points, pc_full[pc_full[:,2] > np.min(pc_full[:,2])+0.001]])
+        # pc_full = target_points
 
         rot = np.array([
                     [0., 0., 1.],
