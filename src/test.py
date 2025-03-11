@@ -88,7 +88,7 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
 
         target_points = np.load('/tmp/target_points.npy')
         pc_full = np.load('/tmp/visible_points.npy')
-        pc_full = np.vstack([target_points, pc_full[pc_full[:,2] > np.min(pc_full[:,2])+0.001]])
+        pc_full = np.vstack([target_points, pc_full[pc_full[:,2] < np.percentile(pc_full[:,2],10)]])
         # pc_full = target_points
 
         rot = np.array([
@@ -116,6 +116,7 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
         t1 = time.time()
         print('*************Time: ', t1-t0)
         print('Scores:', scores)
+        print('Max:', np.max(scores[1]))
         # Visualize results
         #show_image(rgb, segmap)
         visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
@@ -136,6 +137,7 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
         t1 = time.time()
         print('*************Time: ', t1-t0)
         print('Scores:', scores)
+        print('Max:', np.max(scores[1]))
         # Visualize results
         #show_image(rgb, segmap)
         visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
@@ -155,6 +157,7 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
         t1 = time.time()
         print('*************Time: ', t1-t0)
         print('Scores:', scores)
+        print('Max:', np.max(scores[1]))
         # Visualize results
         #show_image(rgb, segmap)
         visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
