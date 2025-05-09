@@ -18,10 +18,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # -e QT_QPA_PLATFORM=offscreen \
     docker_run_command = """
         docker run \
             --rm --net=host -it --gpus all \
-            -e QT_QPA_PLATFORM=offscreen \
+            -e PYOPENGL_PLATFORM='egl' \
             -e DISPLAY=$DISPLAY -v /tmp:/tmp \
             -v $HOME/.Xauthority:/home/user/.Xauthority \
             contact-graspnet:latest \

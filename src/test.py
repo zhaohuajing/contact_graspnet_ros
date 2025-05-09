@@ -85,83 +85,48 @@ def inference(global_config, checkpoint_dir, input_paths, K=None, local_regions=
             pc_full, pc_segments, pc_colors = grasp_estimator.extract_point_clouds(depth, cam_K, segmap=segmap, rgb=rgb,
                                                                                     skip_border_objects=skip_border_objects, z_range=z_range)
 
+        for i in range(3):
+            target_points = np.load(f'/tmp/target_points{i}.npy')
+            pc_full = np.load(f'/tmp/visible_points{i}.npy')
+            #pc_full = np.vstack([target_points, pc_full[pc_full[:,2] < np.percentile(target_points[:,2],10)]])
+            # lx,ly,hx,hy = 0.8, -0.66, 1.5, 0.65
+            # surface_plane = np.random.uniform(
+            #     [lx, ly, z_min], [hx, hy, z_min], size=(100000, 3)
+            # )
+            # pc_full = np.vstack([target_points, surface_plane])
+            # pc_full = target_points
 
-        target_points = np.load('/tmp/target_points.npy')
-        pc_full = np.load('/tmp/visible_points.npy')
-        pc_full = np.vstack([target_points, pc_full[pc_full[:,2] < np.percentile(pc_full[:,2],10)]])
-        # pc_full = target_points
+            rot = np.array([
+                        [0., 0., 1.],
+                        [-1, 0., 0.],
+                        [0., -1., 0.],
+            ]).T
+            #rot = rotation_matrix([0,0,1],np.pi/2)
+            #rot2 = rotation_matrix([1,0,0],np.pi/2)
+            pc_full = (rot @ pc_full.T).T
+            #pc_full = (rot2 @ pc_full.T).T
+            target_points = (rot @ target_points.T).T
+            #target_points = (rot2 @ target_points.T).T
 
-        rot = np.array([
-                    [0., 0., 1.],
-                    [-1, 0., 0.],
-                    [0., -1., 0.],
-        ]).T
-        #rot = rotation_matrix([0,0,1],np.pi/2)
-        #rot2 = rotation_matrix([1,0,0],np.pi/2)
-        pc_full = (rot @ pc_full.T).T
-        #pc_full = (rot2 @ pc_full.T).T
-        target_points = (rot @ target_points.T).T
-        #target_points = (rot2 @ target_points.T).T
+            # rot90 = rotation_matrix([0,1,0],np.pi/2)
+            # for i in range(4):
+            #     pc_full = (rot90 @ pc_full.T).T
+            #     target_points = (rot90 @ target_points.T).T
+            pc_segments = {1: target_points}
 
-        # rot90 = rotation_matrix([0,1,0],np.pi/2)
-        # for i in range(4):
-        #     pc_full = (rot90 @ pc_full.T).T
-        #     target_points = (rot90 @ target_points.T).T
-        pc_segments = {1: target_points}
+            print('Generating Grasps...')
+            t0 = time.time()
+            pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
+                                                                                              local_regions=True, filter_grasps=True, forward_passes=forward_passes)
+            t1 = time.time()
+            print('*************Time: ', t1-t0)
+            print('Scores:', scores)
+            print('Max:', np.max(scores[1]))
+            # Visualize results
+            #show_image(rgb, segmap)
+            visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
 
-        print('Generating Grasps...')
-        t0 = time.time()
-        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
-                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
-        t1 = time.time()
-        print('*************Time: ', t1-t0)
-        print('Scores:', scores)
-        print('Max:', np.max(scores[1]))
-        # Visualize results
-        #show_image(rgb, segmap)
-        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
-
-        center = np.mean(pc_full,axis=0)
-        pc_full -= center
-        target_points -= center
-
-        # for i in range(4):
-        #     pc_full = (rot90 @ pc_full.T).T
-        #     target_points = (rot90 @ target_points.T).T
-        pc_segments = {1: target_points}
-
-        print('Generating Grasps...')
-        t0 = time.time()
-        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
-                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
-        t1 = time.time()
-        print('*************Time: ', t1-t0)
-        print('Scores:', scores)
-        print('Max:', np.max(scores[1]))
-        # Visualize results
-        #show_image(rgb, segmap)
-        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
-
-        pc_full += [0.14, 0., 1.4]
-        target_points += [0.14, 0., 1.4]
-
-        # for i in range(4):
-        #     pc_full = (rot90 @ pc_full.T).T
-        #     target_points = (rot90 @ target_points.T).T
-        pc_segments = {1: target_points}
-
-        print('Generating Grasps...')
-        t0 = time.time()
-        pred_grasps_cam, scores, contact_pts, _ = grasp_estimator.predict_scene_grasps(sess, pc_full, pc_segments=pc_segments,
-                                                                                          local_regions=True, filter_grasps=True, forward_passes=forward_passes)
-        t1 = time.time()
-        print('*************Time: ', t1-t0)
-        print('Scores:', scores)
-        print('Max:', np.max(scores[1]))
-        # Visualize results
-        #show_image(rgb, segmap)
-        visualize_grasps(pc_full, pred_grasps_cam, scores, plot_opencv_cam=True, pc_colors=None)
-
+       
     if not glob.glob(input_paths):
         print('No files found: ', input_paths)
 

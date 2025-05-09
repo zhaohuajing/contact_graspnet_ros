@@ -123,29 +123,28 @@ class GraspPlanner():
 
     def get_grasp_poses(
         self,
-        points,  # std_msgs/Float32MultiArray
-        target_points,  # std_msgs/Float32MultiArray
+        points,  # float32[]
+        mask,  # uint32[]
     ):
-        points = np.array(points.data, dtype=np.float32).reshape(-1, 3)
-        target_points = np.array(target_points.data, dtype=np.float32)
-        target_points = target_points.reshape(-1, 3)
-        # mean = np.mean(target_points, axis=0)
+        points = np.array(points, dtype=np.float32).reshape(-1, 3)
+        mask = np.array(mask, dtype=np.uint32)
 
         # transform to trained coordinate frame
-        # points -= mean
-        # target_points -= mean
         points = (self.frame_rotate[:3, :3] @ points.T).T
-        target_points = (self.frame_rotate[:3, :3] @ target_points.T).T
 
         pose_list = []
         score_list = []
         sample_list = []
+        object_list = []
         for rot in self.extra_rotations:
             # rotate also around vertical so as to simulate
             # seeing the scene from different viewpoints
             points_t = (rot[:3, :3] @ points.T).T
-            target_points_t = (rot[:3, :3] @ target_points.T).T
-            pc_segments = {0: target_points_t}
+            pc_segments = {}
+            for i in range(32):
+                obj_mask = (mask & (1  << i)).astype(bool)
+                if np.count_nonzero(obj_mask) > 0:
+                    pc_segments[i] = points_t[obj_mask]
 
             # predict grasps
             grasps, scores, samples, _ = self.grasp_estimator.predict_scene_grasps(
@@ -159,42 +158,45 @@ class GraspPlanner():
             # print(grasps.keys())
             # print(scores.keys())
             # print(samples.keys())
-            for pose, score, sample in zip(grasps[0], scores[0], samples[0]):
+            for i in grasps.keys():
+                for pose, score, sample in zip(grasps[i], scores[i], samples[i]):
 
-                # transform back to input frame
-                pose = rot.T @ pose
-                pose = self.frame_rotate.T @ pose
-                # pose[:3, 3] += mean
+                    # transform back to input frame
+                    pose = rot.T @ pose
+                    pose = self.frame_rotate.T @ pose
+                    # pose[:3, 3] += mean
 
-                # swap x and y axes
-                pose = pose @ np.array(
-                    [
-                        [0., 1., 0., 0.],
-                        [-1, 0., 0., 0.],
-                        [0., 0., 1., 0.],
-                        [0., 0., 0., 1.],
-                    ]
-                )
+                    # swap x and y axes
+                    pose = pose @ np.array(
+                        [
+                            [0., 1., 0., 0.],
+                            [-1, 0., 0., 0.],
+                            [0., 0., 1., 0.],
+                            [0., 0., 0., 1.],
+                        ]
+                    )
 
-                # rotate around symmetric axis for another possible grasp
-                pose_rot = pose @ self.rotate_z
+                    # rotate around symmetric axis for another possible grasp
+                    pose_rot = pose @ self.rotate_z
 
-                for pose_i in [pose, pose_rot]:
-                    pose_list.append(matrix_to_pose(pose_i))
-                    score_list.append(score)
-                    sample_list.append(Point(sample[0], sample[1], sample[2]))
+                    for pose_i in [pose, pose_rot]:
+                        pose_list.append(matrix_to_pose(pose_i))
+                        score_list.append(score)
+                        sample_list.append(Point(sample[0], sample[1], sample[2]))
+                        object_list.append(i)
 
-        return pose_list, score_list, sample_list
+        return pose_list, score_list, sample_list, object_list
 
     def handle_grasp_request(self, req):
-        grasps, scores, samples = self.get_grasp_poses(
+        grasps, scores, samples, obj_ids = self.get_grasp_poses(
             req.points,
-            req.target_points,
+            req.mask,
         )
         grasps_msg = Grasps()
         grasps_msg.poses = grasps
         grasps_msg.scores = scores
         grasps_msg.samples = samples
+        grasps_msg.object_ids = obj_ids
 
         # self.grasp_plotter.draw_grasps(grasps, scores, frame='world')
 
