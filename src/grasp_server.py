@@ -30,6 +30,7 @@ from cgn_ros.srv import GetGrasps, GetGraspsResponse
 # from grasp_plotter import GraspPlotter
 NUM_ITERS = 5
 
+
 def list_to_pose(pose_list):
     pose_msg = Pose()
     pose_msg.position.x = pose_list[0]
@@ -142,10 +143,11 @@ class GraspPlanner():
             points_t = (rot[:3, :3] @ points.T).T
             pc_segments = {}
             for i in range(32):
-                obj_mask = (mask & (1  << i)).astype(bool)
+                obj_mask = (mask & (1 << i)).astype(bool)
                 if np.count_nonzero(obj_mask) > 0:
-                    pc_segments[i] = points_t[obj_mask]
+                    pc_segments[i + 1] = points_t[obj_mask]
 
+            # print(pc_segments.keys())
             # predict grasps
             grasps, scores, samples, _ = self.grasp_estimator.predict_scene_grasps(
                 self.sess,
@@ -183,8 +185,9 @@ class GraspPlanner():
                         pose_list.append(matrix_to_pose(pose_i))
                         score_list.append(score)
                         sample_list.append(Point(sample[0], sample[1], sample[2]))
-                        object_list.append(i)
+                        object_list.append(i - 1)
 
+        # print(set(object_list))
         return pose_list, score_list, sample_list, object_list
 
     def handle_grasp_request(self, req):
