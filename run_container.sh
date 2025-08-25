@@ -1,3 +1,21 @@
 #!/usr/bin/env bash
-xhost +
-docker run --gpus all --rm -it -e DISPLAY=${DISPLAY} -v /tmp:/tmp contact-graspnet bash
+
+# Allow GUI access for local root user
+xhost +local:root
+
+# Clean up old container (optional)
+docker rm -f contact_graspnet_dev 2>/dev/null
+
+# Run the container
+docker run -it \
+  --gpus all \
+  --env="DISPLAY=$DISPLAY" \
+  --env="QT_X11_NO_MITSHM=1" \
+  --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+  --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+  --network=host \
+  --privileged \
+  --name contact_graspnet_dev \
+  contact-graspnet \
+  bash
+
