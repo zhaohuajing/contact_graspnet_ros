@@ -33,6 +33,12 @@ RUN mkdir -p /tmp/cublas && cd /tmp/cublas && \
 # (alternative: Change directory permissions (less safe))
 # RUN chmod 755 /docker-ros/ws
 
+# Install Sublime Text
+RUN apt-get update && apt-get install -y wget gnupg2 ca-certificates apt-transport-https && \
+    wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add - && \
+    echo "deb https://download.sublimetext.com/ apt/stable/" | tee /etc/apt/sources.list.d/sublime-text.list && \
+    apt-get update && apt-get install -y sublime-text
+
 
 # Added command lines end
 
