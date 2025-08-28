@@ -39,6 +39,9 @@ RUN apt-get update && apt-get install -y wget gnupg2 ca-certificates apt-transpo
     echo "deb https://download.sublimetext.com/ apt/stable/" | tee /etc/apt/sources.list.d/sublime-text.list && \
     apt-get update && apt-get install -y sublime-text
 
+# Install glxinfo to allow grep info for OpenGL
+
+RUN sudo apt install -y mesa-utils libgl1-mesa-glx libgl1-mesa-dri
 
 # Added command lines end
 
